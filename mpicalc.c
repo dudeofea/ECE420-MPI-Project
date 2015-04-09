@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 	double diff = 1.0;
 	double thresh = pow(10, -16);
 	while (diff > thresh)
-	//for (int h = 0; h < 100; ++h)
+	//for (int h = 0; h < 10; ++h)
 	{
 		Node* n;
 		diff = 0.0;
@@ -112,20 +112,20 @@ int main(int argc, char *argv[])
 			}
 		}
 		//Move n_prob to prob
-		for (int i = l_bound; i < u_bound; ++i)
-		{
-			if(nodes[i].id > 0){
-				diff += fabs(nodes[i].n_prob - nodes[i].prob);
-				nodes[i].prob = nodes[i].n_prob;
+		if(ind_count > 0){
+			for (int i = l_bound; i < u_bound; ++i)
+			{
+				if(nodes[i].id > 0){
+					diff += fabs(nodes[i].n_prob - nodes[i].prob);
+					nodes[i].prob = nodes[i].n_prob;
+				}
 			}
 		}
-		//normalize diff
-		diff /= ind_count;
 		//get total diff
 		diff = MPI_Get_Sum(diff, mpi_rank, mpi_size);
 		MPI_Node_Allgather(n_size, nodes, mpi_rank, mpi_size);
 		if(mpi_rank == 0)
-			printf("diff: %e\n", diff);
+			printf("[%d] diff: %e\n", mpi_rank, diff);
 			//print_nodes(0, n_size*mpi_size, nodes);
 	}
 	if(mpi_rank == 0){
@@ -150,19 +150,22 @@ int main(int argc, char *argv[])
 double MPI_Get_Sum(double val, int mpi_rank, int mpi_size){
 	int tag = 3;
 	double total = val;
-	//Send your piece to everyone else
-	for (int i = 0; i < mpi_size; ++i)
+	double tmp;
+	
+	for (int i = 0; i < mpi_size; ++i)	//send index
 	{
 		if(i != mpi_rank){
-			MPI_Send(&val, 1, MPI_DOUBLE, i, tag, MPI_COMM_WORLD);
-		}
-	}
-	//Receive everyone elses pieces
-	for (int i = 0; i < mpi_size; ++i)
-	{
-		if(i != mpi_rank){
-			MPI_Recv(&val, 1, MPI_DOUBLE, i, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			total += val;
+			//Receive everyone elses pieces
+			MPI_Recv(&tmp, 1, MPI_DOUBLE, i, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			total += tmp;
+		}else{
+			for (int j = 0; j < mpi_size; ++j)
+			{
+				if(j != i){	//don't send to yourself
+					//Send your piece to everyone else
+					MPI_Send(&val, 1, MPI_DOUBLE, j, tag, MPI_COMM_WORLD);
+				}
+			}
 		}
 	}
 	return total;
@@ -171,18 +174,21 @@ double MPI_Get_Sum(double val, int mpi_rank, int mpi_size){
 //Special function to all gather nodes
 void MPI_Node_Allgather(int size, Node* nodebuf, int mpi_rank, int mpi_size){
 	int tag = 2;
-	//Send your piece to everyone else
-	for (int i = 0; i < mpi_size; ++i)
+	for (int i = 0; i < mpi_size; ++i)	//send index
 	{
 		if(i != mpi_rank){
-			MPI_Send(nodebuf+mpi_rank*size, size*sizeof(Node), MPI_BYTE, i, tag, MPI_COMM_WORLD);
-		}
-	}
-	//Receive everyone elses pieces
-	for (int i = 0; i < mpi_size; ++i)
-	{
-		if(i != mpi_rank){
+			//Receive everyone elses pieces
+			//printf("%d receiving from %d\n", mpi_rank, i);
 			MPI_Recv(nodebuf+i*size, size*sizeof(Node), MPI_BYTE, i, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		}else{
+			for (int j = 0; j < mpi_size; ++j)
+			{
+				if(j != i){	//don't send to yourself
+					//printf("%d sending to %d\n", mpi_rank, j);
+					//Send your piece to everyone else
+					MPI_Send(nodebuf+mpi_rank*size, size*sizeof(Node), MPI_BYTE, j, tag, MPI_COMM_WORLD);
+				}
+			}
 		}
 	}
 }

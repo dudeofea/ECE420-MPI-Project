@@ -44,7 +44,7 @@ int main(int argc, char const *argv[])
 	double diff = 1.0;
 	double thresh = pow(10, -16);
 	while (diff > thresh)
-	//for (int h = 0; h < 100; ++h)
+	//for (int h = 0; h < 10; ++h)
 	{
 		Node* n;
 		diff = 0.0;

@@ -5,4 +5,4 @@ all:
 	$(CC) $(FLAGS) serialcalc.c -o serialcalc -lm
 	mpicc $(FLAGS) mpicalc.c -o mpicalc -lm
 run:
-	mpirun -np 2 ./mpicalc
+	mpirun -np 8 ./mpicalc

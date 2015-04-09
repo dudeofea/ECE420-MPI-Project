@@ -10,7 +10,7 @@ check_output(['./serialcalc'], shell=True)
 check_output(['mv data_output serial_output'], shell=True)
 
 #Run parallel
-check_output(['./mpicalc'], shell=True)
+check_output(['make run'], shell=True)
 check_output(['mv data_output mpi_output'], shell=True)
 
 #Compare files
