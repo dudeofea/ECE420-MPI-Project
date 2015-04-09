@@ -85,8 +85,9 @@ int main(int argc, char *argv[])
 	}
 	//Continue until threshold reached
 	double diff = 1.0;
-	//while (diff > 0.1)
-	for (int h = 0; h < 10; ++h)
+	double thresh = pow(10, -16);
+	while (diff > thresh)
+	//for (int h = 0; h < 100; ++h)
 	{
 		Node* n;
 		diff = 0.0;
@@ -124,9 +125,13 @@ int main(int argc, char *argv[])
 		diff = MPI_Get_Sum(diff, mpi_rank, mpi_size);
 		MPI_Node_Allgather(n_size, nodes, mpi_rank, mpi_size);
 		if(mpi_rank == 0)
-			print_nodes(0, n_size*mpi_size, nodes);
+			printf("diff: %e\n", diff);
+			//print_nodes(0, n_size*mpi_size, nodes);
 	}
-	//save_data("data_output", nodes, n_size);
+	if(mpi_rank == 0){
+		//print_nodes(0, n_size*mpi_size, nodes);
+		save_data("data_output", nodes, n_size);
+	}
 	//Free the nodes
 	if(nodes != NULL){
 		for (int i = l_bound; i < u_bound; ++i)
@@ -235,15 +240,15 @@ void print_nodes(int l_bound, int u_bound, Node* nodes){
 		n = &nodes[i];
 		if(n->id > 0){
 			prob += n->prob;
-			printf("(%lf) %d -> ", n->prob, n->id);
+			//printf("(%lf) %d -> ", n->prob, n->id);
 			/*for (int j = 0; j < n->links_to_len; ++j)
 			{
 				printf("%d ", n->links_to[j]);
 			}*/
-			printf("\n");
+			//printf("\n");
 		}
 	}
-	printf("Total: %lf\n", prob);
+	printf("Total: %e\n", prob);
 }
 
 Node* load_data(const char* filename, int* n_size, int* n_count){
@@ -324,7 +329,7 @@ void save_data(const char* filename, Node* nodes, int size){
 	for (int i = 0; i < size; ++i)
 	{
 		if(nodes[i].id > 0){
-			fprintf(out, "%d\t%lf\n", nodes[i].id, nodes[i].prob);
+			fprintf(out, "%d\t%1.10f\n", nodes[i].id, nodes[i].prob);
 		}
 	}
 

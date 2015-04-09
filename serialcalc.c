@@ -42,8 +42,9 @@ int main(int argc, char const *argv[])
 	}
 	//Continue until threshold reached
 	double diff = 1.0;
-	//while (diff > 0.1)
-	for (int h = 0; h < 10; ++h)
+	double thresh = pow(10, -16);
+	while (diff > thresh)
+	//for (int h = 0; h < 100; ++h)
 	{
 		Node* n;
 		diff = 0.0;
@@ -75,9 +76,10 @@ int main(int argc, char const *argv[])
 				nodes[i].prob = nodes[i].n_prob;
 			}
 		}
-		print_nodes(n_size, nodes);
+		//print_nodes(n_size, nodes);
+		printf("diff: %e\n", diff);
 	}
-	
+	print_nodes(n_size, nodes);
 	save_data("data_output", nodes, n_size);
 	return 0;
 }
@@ -92,15 +94,15 @@ void print_nodes(int n_size, Node* nodes){
 		n = &nodes[i];
 		if(n->id > 0){
 			prob += n->prob;
-			printf("(%lf) %d -> ", n->prob, n->id);
+			/*printf("(%lf) %d -> ", n->prob, n->id);
 			for (int j = 0; j < n->links_to_len; ++j)
 			{
 				printf("%d ", n->links_to[j]);
 			}
-			printf("\n");
+			printf("\n");*/
 		}
 	}
-	printf("Total: %lf\n", prob);
+	printf("Total: %e\n", prob);
 }
 
 Node* load_data(const char* filename, int* n_size, int* n_count){
@@ -178,7 +180,7 @@ void save_data(const char* filename, Node* nodes, int size){
 	for (int i = 0; i < size; ++i)
 	{
 		if(nodes[i].id > 0){
-			fprintf(out, "%d\t%lf\n", nodes[i].id, nodes[i].prob);
+			fprintf(out, "%d\t%1.10f\n", nodes[i].id, nodes[i].prob);
 		}
 	}
 
