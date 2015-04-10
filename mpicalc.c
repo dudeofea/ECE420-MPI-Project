@@ -28,8 +28,7 @@ void print_nodes(int l_bound, int u_bound, Node* nodes);
 Node* load_data(const char* filename, int* n_size, int* n_count);
 void sort_data(Node *nodes, int n_size, int mpi_size);
 void save_data(const char* filename, Node* nodes, int size);
-int* get_send_array(int size, Node* nodes, int mpi_rank, int *send_s);
-int* get_dest_array(int size, Node* nodes, int mpi_rank, int *send_arr, int send_s);
+int* get_send_array(int size, Node* nodes, int mpi_rank, int *send_s, int **dest_arr);
 int* get_recv_array(int size, Node* nodes, int mpi_rank, int *recv_s);
 double MPI_Get_Sum(double val, int mpi_rank, int mpi_size);
 void MPI_Node_Alltoall(int size, Node* nodebuf, int mpi_rank, int mpi_size);
@@ -43,8 +42,6 @@ int main(int argc, char *argv[])
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
 	MPI_Comm_size(MPI_COMM_WORLD,&mpi_size);
-
-	printf("I am process %d of %d\n", mpi_rank, mpi_size);
 	
 	int n_count = 0;	//total number of nodes
 	int n_size = 0;		//size of nodes array
@@ -67,7 +64,7 @@ int main(int argc, char *argv[])
 	MPI_Bcast(&n_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&n_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-	printf("%d %d\n", n_size, n_count);
+	//printf("%d %d\n", n_size, n_count);
 	if(mpi_rank == 0)
 		nodes = all_nodes;	//no need to keep the original data intact
 	else
@@ -82,11 +79,11 @@ int main(int argc, char *argv[])
 	int u_bound = (mpi_rank+1)*n_size;	//upper bounds of nodes
 
 	//get dependency arrays
-	/*int send_s, recv_s;					//size of arrays
-	int* send_arr = get_send_array(n_size, nodes, mpi_rank, &send_s);
-	int* dest_arr = get_dest_array(n_size, nodes, mpi_rank, send_arr, send_s);
+	int send_s, recv_s;					//size of arrays
+	int* dest_arr = NULL;
+	int* send_arr = get_send_array(n_size, nodes, mpi_rank, &send_s, &dest_arr);
 	int* recv_arr = get_recv_array(n_size, nodes, mpi_rank, &recv_s);
-	printf("[%d] send: %d recv: %d\n", mpi_rank, send_s, recv_s);*/
+	//printf("[%d] send: %d recv: %d\n", mpi_rank, send_s, recv_s);
 
 	for (int i = 0; i < n_size*mpi_size; ++i)
 	{
@@ -136,8 +133,8 @@ int main(int argc, char *argv[])
 		}
 		//get total diff
 		diff = MPI_Get_Sum(diff, mpi_rank, mpi_size);
-		MPI_Node_Alltoall(n_size, nodes, mpi_rank, mpi_size);
-		//MPI_Node_Alltoall2(n_size, nodes, send_arr, dest_arr, send_s, recv_arr, recv_s);
+		//MPI_Node_Alltoall(n_size, nodes, mpi_rank, mpi_size);
+		MPI_Node_Alltoall2(n_size, nodes, send_arr, dest_arr, send_s, recv_arr, recv_s);
 		if(mpi_rank == 0)
 			printf("[%d] diff: %e\n", mpi_rank, diff);
 			//print_nodes(0, n_size*mpi_size, nodes);
@@ -209,9 +206,10 @@ void MPI_Node_Alltoall(int size, Node* nodebuf, int mpi_rank, int mpi_size){
 }
 
 //Get arrays telling us what nodes to send
-int* get_send_array(int size, Node* nodes, int mpi_rank, int *send_s){
+int* get_send_array(int size, Node* nodes, int mpi_rank, int *send_s, int **dest_arr){
 	int send_i = 0;
 	int *send_arr = NULL;
+	int *dest_a = NULL;
 	for (int i = mpi_rank*size; i < (mpi_rank+1)*size; ++i)
 	{
 		if(nodes[i].id > 0){
@@ -221,30 +219,29 @@ int* get_send_array(int size, Node* nodes, int mpi_rank, int *send_s){
 			{
 				int dest = (n->links_fr[j]-1) / size;
 				if(dest != mpi_rank){	//don't send to yourself
-					send_i++;
-					send_arr = (int*) realloc(send_arr, send_i * sizeof(int));
-					send_arr[send_i-1] = n->id;
+					//check if we already have it
+					int matches = 0;
+					for (int i = 0; i < send_i; ++i)
+					{
+						if(n->id == send_arr[i]){
+							matches++;
+							break;
+						}
+					}
+					if(matches == 0){
+						send_i++;
+						send_arr = (int*) realloc(send_arr, send_i * sizeof(int));
+						send_arr[send_i-1] = n->id;
+						dest_a = (int*) realloc(dest_a, send_i * sizeof(int));
+						dest_a[send_i-1] = dest;
+					}
 				}
 			}
 		}
 	}
 	*send_s = send_i;
+	*dest_arr = dest_a;
 	return send_arr;
-}
-
-int* get_dest_array(int size, Node* nodes, int mpi_rank, int *send_arr, int send_s){
-	int *dest_arr = (int*) malloc(send_s * sizeof(int));
-	for (int i = 0; i < send_s; ++i)
-	{
-		for (int j = 0; j < nodes[send_arr[i]-1].links_fr_len; ++j)
-		{
-			int dest = (nodes[send_arr[i]-1].links_fr[j]-1) / size;
-			if(dest != mpi_rank){	//don't send to yourself
-				dest_arr[i] = dest;
-			}
-		}
-	}
-	return dest_arr;
 }
 
 //Get arrays telling us what nodes to recv
@@ -260,9 +257,20 @@ int* get_recv_array(int size, Node* nodes, int mpi_rank, int *recv_s){
 			{
 				int src = (n->links_to[j]-1) / size;
 				if(src != mpi_rank){	//don't receive from yourself
-					recv_i++;
-					recv_arr = (int*) realloc(recv_arr, recv_i * sizeof(int));
-					recv_arr[recv_i-1] = n->links_to[j];
+					//check if we already have it
+					int matches = 0, id = n->links_to[j];
+					for (int i = 0; i < recv_i; ++i)
+					{
+						if(id == recv_arr[i]){
+							matches++;
+							break;
+						}
+					}
+					if(matches == 0){
+						recv_i++;
+						recv_arr = (int*) realloc(recv_arr, recv_i * sizeof(int));
+						recv_arr[recv_i-1] = id;
+					}
 				}
 			}
 		}
