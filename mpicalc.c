@@ -216,7 +216,7 @@ void MPI_Node_Alltoall(int size, Node* nodebuf, int mpi_rank, int mpi_size){
 				if(j != i){	//don't send to yourself
 					//printf("%d sending to %d\n", mpi_rank, j);
 					//Send your piece to everyone else
-					MPI_Rsend(nodebuf+mpi_rank*size, size*sizeof(Node), MPI_BYTE, j, tag, MPI_COMM_WORLD);
+					MPI_Send(nodebuf+mpi_rank*size, size*sizeof(Node), MPI_BYTE, j, tag, MPI_COMM_WORLD);
 				}
 			}
 		}
