@@ -35,7 +35,7 @@ void save_data(const char* filename, Node* nodes, int size);
 int main(int argc, char const *argv[])
 {
 	//time vars
-	double start, end;
+	double start, end, calc;
 	int n_count = 0;	//total number of nodes
 	int n_size = 0;		//size of nodes array
 	//Load
@@ -43,6 +43,7 @@ int main(int argc, char const *argv[])
 	Node* nodes = load_data("data_input", &n_size, &n_count);
 	printf("%d %d\n", n_size, n_count);
 	//Initialize PR values
+	GET_TIME(calc);
 	double frac = 1.0 / (double) n_count;
 	for (int i = 0; i < n_size; ++i)
 	{
@@ -91,6 +92,7 @@ int main(int argc, char const *argv[])
 	}
 	GET_TIME(end);
 	printf("time: %lf\n", end-start);
+	printf("calc: %lf\n", end-calc);
 	//print_nodes(n_size, nodes);
 	save_data("data_output", nodes, n_size);
 	return 0;

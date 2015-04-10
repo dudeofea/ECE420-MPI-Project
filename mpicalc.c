@@ -45,7 +45,7 @@ void MPI_Node_Bcast(int size, Node* sendbuf, Node* recvbuf, int send_rank, int m
 int main(int argc, char *argv[])
 {
 	//time vars
-	double start, end;
+	double start, end, calc;
 	//Init MPI
 	int mpi_rank, mpi_size;
 	MPI_Init(&argc, &argv);
@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
 	MPI_Node_Bcast(n_size, all_nodes, nodes, 0, mpi_rank, mpi_size);
 	
 	//Initialize PR values
+	GET_TIME(calc);
 	double frac = 1.0 / (double) n_count;
 	int ind_count = 0;		//number of non-zero nodes in individual array
 	int l_bound = mpi_rank*n_size;		//lower bound of nodes
@@ -152,6 +153,7 @@ int main(int argc, char *argv[])
 	if(mpi_rank == 0){
 		GET_TIME(end);
 		printf("time: %lf\n", end-start);
+		printf("calc: %lf\n", end-calc);
 	}
 	if(mpi_rank == 0){
 		//print_nodes(0, n_size*mpi_size, nodes);
