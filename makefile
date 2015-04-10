@@ -1,4 +1,4 @@
-FLAGS=--std=c99 -Wall
+FLAGS=--std=c99 -Wall -Wno-uninitialized
 
 all:
 	$(CC) $(FLAGS) datatrim.c -o datatrim
