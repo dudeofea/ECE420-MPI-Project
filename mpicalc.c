@@ -9,6 +9,13 @@
 #include <string.h>
 #include <math.h>
 #include <mpi.h>
+#include <sys/time.h>
+
+#define GET_TIME(now) { \
+   struct timeval t; \
+   gettimeofday(&t, NULL); \
+   now = t.tv_sec + t.tv_usec/1000000.0; \
+}
 
 //Node structure
 typedef struct{
@@ -37,6 +44,8 @@ void MPI_Node_Bcast(int size, Node* sendbuf, Node* recvbuf, int send_rank, int m
 
 int main(int argc, char *argv[])
 {
+	//time vars
+	double start, end;
 	//Init MPI
 	int mpi_rank, mpi_size;
 	MPI_Init(&argc, &argv);
@@ -50,6 +59,7 @@ int main(int argc, char *argv[])
 	//Load
 	//to other processes
 	if(mpi_rank == 0){
+		GET_TIME(start);
 		all_nodes = load_data("data_input", &n_size, &n_count);
 
 		printf("Input size is %d with %d processes\n", n_size, mpi_size);
@@ -79,11 +89,11 @@ int main(int argc, char *argv[])
 	int u_bound = (mpi_rank+1)*n_size;	//upper bounds of nodes
 
 	//get dependency arrays
-	int send_s, recv_s;					//size of arrays
+	/*int send_s, recv_s;					//size of arrays
 	int* dest_arr = NULL;
 	int* send_arr = get_send_array(n_size, nodes, mpi_rank, &send_s, &dest_arr);
 	int* recv_arr = get_recv_array(n_size, nodes, mpi_rank, &recv_s);
-	//printf("[%d] send: %d recv: %d\n", mpi_rank, send_s, recv_s);
+	//printf("[%d] send: %d recv: %d\n", mpi_rank, send_s, recv_s);*/
 
 	for (int i = 0; i < n_size*mpi_size; ++i)
 	{
@@ -133,11 +143,15 @@ int main(int argc, char *argv[])
 		}
 		//get total diff
 		diff = MPI_Get_Sum(diff, mpi_rank, mpi_size);
-		//MPI_Node_Alltoall(n_size, nodes, mpi_rank, mpi_size);
-		MPI_Node_Alltoall2(n_size, nodes, send_arr, dest_arr, send_s, recv_arr, recv_s);
+		MPI_Node_Alltoall(n_size, nodes, mpi_rank, mpi_size);
+		//MPI_Node_Alltoall2(n_size, nodes, send_arr, dest_arr, send_s, recv_arr, recv_s);
 		if(mpi_rank == 0)
 			printf("[%d] diff: %e\n", mpi_rank, diff);
 			//print_nodes(0, n_size*mpi_size, nodes);
+	}
+	if(mpi_rank == 0){
+		GET_TIME(end);
+		printf("time: %lf\n", end-start);
 	}
 	if(mpi_rank == 0){
 		//print_nodes(0, n_size*mpi_size, nodes);
@@ -186,6 +200,8 @@ double MPI_Get_Sum(double val, int mpi_rank, int mpi_size){
 //Special function for all to all
 void MPI_Node_Alltoall(int size, Node* nodebuf, int mpi_rank, int mpi_size){
 	int tag = 2;
+	//ensure everyone is here
+	MPI_Barrier(MPI_COMM_WORLD);
 	for (int i = 0; i < mpi_size; ++i)	//send index
 	{
 		if(i != mpi_rank){
@@ -198,7 +214,7 @@ void MPI_Node_Alltoall(int size, Node* nodebuf, int mpi_rank, int mpi_size){
 				if(j != i){	//don't send to yourself
 					//printf("%d sending to %d\n", mpi_rank, j);
 					//Send your piece to everyone else
-					MPI_Send(nodebuf+mpi_rank*size, size*sizeof(Node), MPI_BYTE, j, tag, MPI_COMM_WORLD);
+					MPI_Rsend(nodebuf+mpi_rank*size, size*sizeof(Node), MPI_BYTE, j, tag, MPI_COMM_WORLD);
 				}
 			}
 		}

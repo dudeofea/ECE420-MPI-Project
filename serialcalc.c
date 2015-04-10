@@ -7,6 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <sys/time.h>
+
+#define GET_TIME(now) { \
+   struct timeval t; \
+   gettimeofday(&t, NULL); \
+   now = t.tv_sec + t.tv_usec/1000000.0; \
+}
 
 //Node structure
 typedef struct{
@@ -27,9 +34,12 @@ void save_data(const char* filename, Node* nodes, int size);
 
 int main(int argc, char const *argv[])
 {
+	//time vars
+	double start, end;
 	int n_count = 0;	//total number of nodes
 	int n_size = 0;		//size of nodes array
 	//Load
+	GET_TIME(start);
 	Node* nodes = load_data("data_input", &n_size, &n_count);
 	printf("%d %d\n", n_size, n_count);
 	//Initialize PR values
@@ -79,7 +89,9 @@ int main(int argc, char const *argv[])
 		//print_nodes(n_size, nodes);
 		printf("diff: %e\n", diff);
 	}
-	print_nodes(n_size, nodes);
+	GET_TIME(end);
+	printf("time: %lf\n", end-start);
+	//print_nodes(n_size, nodes);
 	save_data("data_output", nodes, n_size);
 	return 0;
 }
